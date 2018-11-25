@@ -1,50 +1,39 @@
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.ticker import NullFormatter
 from sklearn import manifold, datasets
 from time import time
 
+
 # options
-random_state = 1234
+random_state = 0
 n_samples = 1000
 n_components = 3
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-perplexity = 5
+perplexity = 30
+
+data_train_not_susp_file = 'data/train_not_susp.csv'
+data_train_not_susp = pd.read_csv(data_train_not_susp_file)
+data_train_not_susp = data_train_not_susp[:100]
 
 # load the data and randomly sample
-data_file_path = 'data/final_train.csv'
-data = pd.read_csv(data_file_path).sample(n=n_samples, random_state=random_state)
+data_train_susp_file = 'data/train_susp.csv'
+data_train_susp = pd.read_csv(data_train_susp_file)
+data_train_susp = data_train_susp[:100]
 
-# spearate features from the labels
-y = data['suspicious']
-X = data.drop(['suspicious'], axis=1)
+data_prediction_file = 'data/predictions.csv'
+data_prediction = pd.read_csv(data_prediction_file)
+data_prediction = data_prediction[:100]
 
-# convert to numpy arrays
-y = y.values
-X = X.values
-
-# get the boolean masks
-not_suspicious = y == 0
-suspicious = y == 1
-
-
-    
-# fit the TSNE
-t0 = time()
-tsne = manifold.TSNE(n_components=n_components, init='random',
+# define TSNE
+tsne = manifold.TSNE(n_components=n_components, init='random', n_iter=1000, learning_rate=200.0,
                     random_state=random_state, perplexity=perplexity, verbose=1, method='exact')
-Y = tsne.fit_transform(X)
-t1 = time()
-    
-print("perplexity=%d in %.2g sec" % (perplexity, t1 - t0))
-ax.set_title("Perplexity=%d" % perplexity)
-ax.scatter(Y[not_suspicious, 0], Y[not_suspicious, 1], Y[not_suspicious, 2], c="g", label='not suspicious', marker='o')
-ax.scatter(Y[suspicious, 0], Y[suspicious, 1], Y[suspicious, 2], c="r", label='suspicious', marker='^')
-ax.legend(loc='upper left')
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-plt.show()
+
+Y_no_susp = tsne.fit_transform(data_train_not_susp.values)
+Y_susp = tsne.fit_transform(data_train_susp.values)
+Y_pred_susp = tsne.fit_transform(data_prediction.values)
+
+# concatenate and save
+Y = np.concatenate((np.array(Y_no_susp), np.array(Y_susp), np.array(Y_pred_susp)), axis=1)
+print(Y.shape)
+df = pd.DataFrame(Y)
+df.to_csv("tsne_projections.csv", index=False)
